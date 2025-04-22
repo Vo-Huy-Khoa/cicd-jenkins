@@ -81,7 +81,7 @@ pipeline {
         always {
             slackSend channel: '#notification-jenkins',
                 color: COLOR_MAP[currentBuild.currentResult],
-                message: "`test jenkins (${TAG})` - *${currentBuild.currentResult}*\nChanges: \n${getChangeString()}"
+                message: "`test jenkins` - *${currentBuild.currentResult}*\nChanges: \n${getChangeString()}"
         }
     }
 }
