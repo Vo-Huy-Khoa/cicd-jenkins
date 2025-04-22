@@ -9,7 +9,7 @@ set -e
 set -x
 
 # Cat env content from Jenkins Credentials to .env file
-cat "$ENV_FILE" > ./.env
+# cat "$ENV_FILE" > ./.env
 
 # Debug: show PATH and yarn location
 echo "Current PATH: $PATH"
