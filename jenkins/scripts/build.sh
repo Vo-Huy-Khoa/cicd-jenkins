@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "Building Nuxt app, tag $TAG"
 
 # Exit on error
@@ -7,10 +9,16 @@ set -e
 set -x
 
 # Cat env content from Jenkins Credentials to .env file
-cat $ENV_FILE > ./.env
+cat "$ENV_FILE" > ./.env
+
+# Debug: show PATH and yarn location
+echo "Current PATH: $PATH"
+which yarn || {
+  echo "❌ 'yarn' not found. Please make sure it's installed in your Jenkins agent or Docker image."
+  exit 1
+}
 
 # Install dependencies
-export PATH="$PATH:/usr/local/bin"
 yarn install --frozen-lockfile
 
 # Build Nuxt app
@@ -24,9 +32,9 @@ OUT=$?
 set +x
 
 if [ $OUT -eq 0 ]; then
-    echo "Nuxt app build completed successfully."
+    echo "✅ Nuxt app build completed successfully."
     exit 0
 else
-    echo "Failure: Nuxt app build failed."
+    echo "❌ Failure: Nuxt app build failed."
     exit 1
 fi
