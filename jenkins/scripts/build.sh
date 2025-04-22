@@ -12,6 +12,8 @@ set -x
 # cat "$ENV_FILE" > ./.env
 
 # Debug: show PATH and yarn location
+#Build
+export PATH="$PATH:/usr/local/bin"
 echo "Current PATH: $PATH"
 which yarn || {
   echo "❌ 'yarn' not found. Please make sure it's installed in your Jenkins agent or Docker image."
