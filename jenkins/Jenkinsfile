@@ -77,11 +77,11 @@ pipeline {
 
     }
 
-    // post {
-    //     always {
-    //         rocketSend channel: '#test-jenkins',
-    //             color: COLOR_MAP[currentBuild.currentResult],
-    //             message: "`test jenkins (${TAG})` - *${currentBuild.currentResult}*\nChanges: \n${getChangeString()}"
-    //     }
-    // }
+    post {
+        always {
+            slackSend channel: '#notification-jenkins',
+                color: COLOR_MAP[currentBuild.currentResult],
+                message: "`test jenkins (${TAG})` - *${currentBuild.currentResult}*\nChanges: \n${getChangeString()}"
+        }
+    }
 }
