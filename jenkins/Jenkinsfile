@@ -1,0 +1,87 @@
+def COLOR_MAP = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'danger', 'ABORTED': 'danger']
+
+@NonCPS
+def getChangeString() {
+    MAX_MSG_LEN = 100
+    def changeString = ""
+    echo "Gathering SCM changes"
+    def changeLogSets = currentBuild.rawBuild.changeSets
+    for (int i = 0; i < changeLogSets.size(); i++) {
+        def entries = changeLogSets[i].items
+        for (int j = 0; j < entries.length; j++) {
+            def entry = entries[j]
+            truncated_msg = entry.msg.take(MAX_MSG_LEN)
+            if (!truncated_msg.contains(',')) {
+                changeString += " - ${truncated_msg}\n"
+            }
+        }
+    }
+    if (!changeString) {
+        changeString = " - No new changes"
+    }
+
+    return changeString
+}
+
+pipeline {
+    agent any
+    
+    environment {
+        SERVER_URL_PRODUCTION = 'https://example.com'
+    }
+
+    options {
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Development') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                script {
+                    env.TAG = 'development'
+                    env.ENV_FILE = "${env.ENV_DEV}"
+                    env.SERVER_USERNAME = "${env.SERVER_USERNAME_DEV}"
+                    env.SERVER_URL = "${env.SERVER_URL_DEV}"
+                    env.SERVER_SSH_KEY_FILE = "${env.SERVER_SSH_KEY_FILE_DEV}"
+                }
+
+                echo "BUILD_ENV: dev"
+                echo "TAG: $TAG"
+            }
+        }
+
+
+        stage('Build') {
+            steps {
+                sh 'chmod +x ./jenkins/scripts/build.sh && ./jenkins/scripts/build.sh'
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'dev'
+                }
+            }
+
+            steps {
+                script {
+                    sh 'chmod +x ./jenkins/scripts/deploy.sh && ./jenkins/scripts/deploy.sh'
+                }
+            }
+        }
+
+    }
+
+    // post {
+    //     always {
+    //         rocketSend channel: '#test-jenkins',
+    //             color: COLOR_MAP[currentBuild.currentResult],
+    //             message: "`test jenkins (${TAG})` - *${currentBuild.currentResult}*\nChanges: \n${getChangeString()}"
+    //     }
+    // }
+}
