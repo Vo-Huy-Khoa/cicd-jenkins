@@ -13,6 +13,9 @@ yarn build
 rm -rf .output.zip
 zip -r .output.zip .output
 
+OUT=$?
+set +x
+
 if [ $OUT -eq 0 ]; then
     exit 0
 else
