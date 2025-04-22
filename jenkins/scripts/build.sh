@@ -10,6 +10,8 @@ export PATH="$PATH:/usr/local/bin"
 yarn install --frozen-lockfile
 yarn build
 
+yarn test
+
 rm -rf .output.zip
 zip -r .output.zip .output
 
