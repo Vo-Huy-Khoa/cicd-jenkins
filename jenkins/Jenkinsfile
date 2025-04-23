@@ -1,34 +1,6 @@
-def COLOR_MAP = [
-    'SUCCESS' : 'good',
-    'FAILURE' : 'danger',
-    'UNSTABLE': 'danger',
-    'ABORTED' : 'warning'
-]
-
-@NonCPS
-def getChangeString() {
-    def MAX_MSG_LEN = 100
-    def changeString = ""
-    echo "Gathering SCM changes"
-    def changeLogSets = currentBuild.rawBuild.changeSets
-
-    for (int i = 0; i < changeLogSets.size(); i++) {
-        def entries = changeLogSets[i].items
-        for (int j = 0; j < entries.length; j++) {
-            def entry = entries[j]
-            def truncated_msg = entry.msg.take(MAX_MSG_LEN)
-            if (!truncated_msg.contains(',')) {
-                changeString += " - ${truncated_msg}\n"
-            }
-        }
-    }
-
-    return changeString ?: " - No new changes"
-}
-
 pipeline {
     agent any
-
+    
     environment {
         SERVER_URL_PRODUCTION = 'https://example.com'
     }
@@ -38,6 +10,19 @@ pipeline {
     }
 
     stages {
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    // Cài đặt pip3 và openai trong container Jenkins (nếu chưa cài)
+                    sh """
+                        apt update
+                        apt install -y python3-pip python3-venv
+                        pip3 install --upgrade pip
+                        pip3 install openai
+                    """
+                }
+            }
+        }
 
         stage('Development') {
             when {
@@ -57,22 +42,13 @@ pipeline {
             }
         }
 
-        // stage('Copilot Review') {
-        //     steps {
-        //         script {
-        //             sh 'chmod +x ./jenkins/scripts/copilot_review.sh'
-        //             sh './jenkins/scripts/copilot_review.sh > ./jenkins/scripts/copilot_output.txt'
-        //             sh 'cat ./jenkins/scripts/copilot_output.txt || echo "copilot_output.txt not found!"'
-        //         }
-        //     }
-        // }
-
         stage('Copilot Review') {
             steps {
                 script {
+                    // Sử dụng OpenAI API key từ Jenkins Credentials
                     withCredentials([string(credentialsId: 'OPENAI_API_KEY', variable: 'OPENAI_API_KEY')]) {
                         sh """
-                            chmod +x ./jenkins/scripts/copilot_review.py
+                            chmod +x ./jenkins/scripts/copilot_review.py &&
                             export OPENAI_API_KEY=${OPENAI_API_KEY}
                             python3 ./jenkins/scripts/copilot_review.py || echo "No review generated."
                         """
@@ -103,51 +79,29 @@ pipeline {
     }
 
     post {
-    always {
-        script {
-            def review = sh(
-                script: "tail -n 30 ./jenkins/scripts/copilot_output.txt || echo 'No Copilot review found.'",
-                returnStdout: true
-            ).trim()
+        always {
+            script {
+                def review = sh(
+                    script: "grep -A 1 'Suggested Review' ./jenkins/scripts/copilot_output.txt | tail -n 1",
+                    returnStdout: true
+                ).trim()
 
-            slackSend(
-                channel: '#notification-jenkins',
-                color: COLOR_MAP.get(currentBuild.currentResult, 'warning'),
-                message: """*Build Result*: ${currentBuild.currentResult}
-*Copilot AI Review*:\n${review}"""
-            )
+                def changeLog = getChangeString()
+
+                def color = COLOR_MAP.get(currentBuild.currentResult, 'warning')
+
+                slackSend(
+                    channel: '#notification-jenkins',
+                    color: color,
+                    message: """`test jenkins` - *${currentBuild.currentResult}*
+                    Changes:
+                    ${changeLog}
+
+                    Suggested Review:
+                    ${review}
+                    """
+                )
+            }
         }
     }
-}
-
-
-//     post {
-//         always {
-//             script {
-//                 def review = sh(
-//                     script: "tail -n 5 ./jenkins/scripts/copilot_output.txt || echo 'No review found.'",
-//                     returnStdout: true
-//                 ).trim()
-
-//                 def changeLog = getChangeString()
-//                 def color = COLOR_MAP.get(currentBuild.currentResult, 'warning')
-
-//                 echo "Slack Message Preview:"
-//                 echo "Changes:\n${changeLog}"
-//                 echo "Review:\n${review}"
-
-//                 slackSend(
-//                     channel: '#notification-jenkins',
-//                     color: color,
-//                     message: """`test jenkins` - *${currentBuild.currentResult}*
-// Changes:
-// ${changeLog}
-
-// Suggested Review:
-// ${review}
-// """
-//                 )
-//             }
-//         }
-//     }
 }
