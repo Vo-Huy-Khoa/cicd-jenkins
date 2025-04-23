@@ -53,6 +53,13 @@ pipeline {
             }
         }
 
+            stage('Copilot Code Review') {
+      steps {
+        script {
+          sh 'chmod +x ./jenkins/scripts/copilot_review.sh && ./jenkins/scripts/copilot_review.sh > ./jenkins/scripts/copilot_output.txt'
+        }
+      }
+    }
 
         stage('Build') {
             steps {
@@ -81,7 +88,9 @@ pipeline {
         always {
             slackSend channel: '#notification-jenkins',
                 color: COLOR_MAP[currentBuild.currentResult],
-                message: "`test jenkins` - *${currentBuild.currentResult}*\nChanges: \n${getChangeString()}"
+                message: "`test jenkins` - *${currentBuild.currentResult}*
+                \nChanges: \n${getChangeString()}
+                \nSuggested Review: \n`$(cat ./jenkins/scripts/copilot_output.txt | grep -A 1 "Suggested Review" | tail -n 1)`"
         }
     }
 }
