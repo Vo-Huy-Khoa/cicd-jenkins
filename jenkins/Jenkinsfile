@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    
+
     environment {
         SERVER_URL_PRODUCTION = 'https://example.com'
     }
@@ -13,12 +13,12 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Cài đặt pip3 và openai trong container Jenkins (nếu chưa cài)
+                    // Create a virtual environment and install dependencies within it
                     sh """
-                        apt update
-                        apt install -y python3-pip python3-venv
-                        pip3 install --upgrade pip
-                        pip3 install openai
+                        python3 -m venv venv
+                        source venv/bin/activate
+                        pip install --upgrade pip
+                        pip install openai
                     """
                 }
             }
@@ -45,11 +45,12 @@ pipeline {
         stage('Copilot Review') {
             steps {
                 script {
-                    // Sử dụng OpenAI API key từ Jenkins Credentials
+                    // Use OpenAI API key securely from Jenkins credentials
                     withCredentials([string(credentialsId: 'OPENAI_API_KEY', variable: 'OPENAI_API_KEY')]) {
                         sh """
                             chmod +x ./jenkins/scripts/copilot_review.py &&
                             export OPENAI_API_KEY=${OPENAI_API_KEY}
+                            source venv/bin/activate
                             python3 ./jenkins/scripts/copilot_review.py || echo "No review generated."
                         """
                     }
