@@ -1,31 +1,33 @@
-def COLOR_MAP = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'danger', 'ABORTED': 'danger']
+def COLOR_MAP = [
+    'SUCCESS' : 'good',
+    'FAILURE' : 'danger',
+    'UNSTABLE': 'danger',
+    'ABORTED' : 'warning'
+]
 
-@NonCPS
 def getChangeString() {
-    MAX_MSG_LEN = 100
+    def MAX_MSG_LEN = 100
     def changeString = ""
     echo "Gathering SCM changes"
     def changeLogSets = currentBuild.rawBuild.changeSets
+
     for (int i = 0; i < changeLogSets.size(); i++) {
         def entries = changeLogSets[i].items
         for (int j = 0; j < entries.length; j++) {
             def entry = entries[j]
-            truncated_msg = entry.msg.take(MAX_MSG_LEN)
+            def truncated_msg = entry.msg.take(MAX_MSG_LEN)
             if (!truncated_msg.contains(',')) {
                 changeString += " - ${truncated_msg}\n"
             }
         }
     }
-    if (!changeString) {
-        changeString = " - No new changes"
-    }
 
-    return changeString
+    return changeString ?: " - No new changes"
 }
 
 pipeline {
     agent any
-    
+
     environment {
         SERVER_URL_PRODUCTION = 'https://example.com'
     }
@@ -35,6 +37,7 @@ pipeline {
     }
 
     stages {
+
         stage('Development') {
             when {
                 branch 'dev'
@@ -53,13 +56,13 @@ pipeline {
             }
         }
 
-            stage('Copilot Code Review') {
-      steps {
-        script {
-          sh 'chmod +x ./jenkins/scripts/copilot_review.sh && ./jenkins/scripts/copilot_review.sh > ./jenkins/scripts/copilot_output.txt'
+        stage('Copilot Code Review') {
+            steps {
+                script {
+                    sh 'chmod +x ./jenkins/scripts/copilot_review.sh && ./jenkins/scripts/copilot_review.sh > ./jenkins/scripts/copilot_output.txt'
+                }
+            }
         }
-      }
-    }
 
         stage('Build') {
             steps {
@@ -74,14 +77,12 @@ pipeline {
                     branch 'dev'
                 }
             }
-
             steps {
                 script {
                     sh 'chmod +x ./jenkins/scripts/deploy.sh && ./jenkins/scripts/deploy.sh'
                 }
             }
         }
-
     }
 
     post {
@@ -94,15 +95,19 @@ pipeline {
 
                 def changeLog = getChangeString()
 
-                slackSend channel: '#notification-jenkins',
-                    color: COLOR_MAP[currentBuild.currentResult],
-                    message: """`test jenkins` - *${currentBuild.currentResult}*
-    Changes:
-    ${changeLog}
+                def color = COLOR_MAP.get(currentBuild.currentResult, 'warning')
 
-    Suggested Review:
-    ${review}
-    """
+                slackSend(
+                    channel: '#notification-jenkins',
+                    color: color,
+                    message: """`test jenkins` - *${currentBuild.currentResult}*
+                    Changes:
+                    ${changeLog}
+
+                    Suggested Review:
+                    ${review}
+                    """
+                )
             }
         }
     }
