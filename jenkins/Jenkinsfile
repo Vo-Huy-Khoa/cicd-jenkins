@@ -57,12 +57,26 @@ pipeline {
             }
         }
 
+        // stage('Copilot Review') {
+        //     steps {
+        //         script {
+        //             sh 'chmod +x ./jenkins/scripts/copilot_review.sh'
+        //             sh './jenkins/scripts/copilot_review.sh > ./jenkins/scripts/copilot_output.txt'
+        //             sh 'cat ./jenkins/scripts/copilot_output.txt || echo "copilot_output.txt not found!"'
+        //         }
+        //     }
+        // }
+
         stage('Copilot Review') {
             steps {
                 script {
-                    sh 'chmod +x ./jenkins/scripts/copilot_review.sh'
-                    sh './jenkins/scripts/copilot_review.sh > ./jenkins/scripts/copilot_output.txt'
-                    sh 'cat ./jenkins/scripts/copilot_output.txt || echo "copilot_output.txt not found!"'
+                    withCredentials([string(credentialsId: 'OPENAI_API_KEY', variable: 'OPENAI_API_KEY')]) {
+                        sh """
+                            chmod +x ./jenkins/scripts/copilot_review.py
+                            export OPENAI_API_KEY=${OPENAI_API_KEY}
+                            python3 ./jenkins/scripts/copilot_review.py || echo "No review generated."
+                        """
+                    }
                 }
             }
         }
@@ -89,32 +103,51 @@ pipeline {
     }
 
     post {
-        always {
-            script {
-                def review = sh(
-                    script: "tail -n 5 ./jenkins/scripts/copilot_output.txt || echo 'No review found.'",
-                    returnStdout: true
-                ).trim()
+    always {
+        script {
+            def review = sh(
+                script: "tail -n 30 ./jenkins/scripts/copilot_output.txt || echo 'No Copilot review found.'",
+                returnStdout: true
+            ).trim()
 
-                def changeLog = getChangeString()
-                def color = COLOR_MAP.get(currentBuild.currentResult, 'warning')
-
-                echo "Slack Message Preview:"
-                echo "Changes:\n${changeLog}"
-                echo "Review:\n${review}"
-
-                slackSend(
-                    channel: '#notification-jenkins',
-                    color: color,
-                    message: """`test jenkins` - *${currentBuild.currentResult}*
-Changes:
-${changeLog}
-
-Suggested Review:
-${review}
-"""
-                )
-            }
+            slackSend(
+                channel: '#notification-jenkins',
+                color: COLOR_MAP.get(currentBuild.currentResult, 'warning'),
+                message: """*Build Result*: ${currentBuild.currentResult}
+*Copilot AI Review*:\n${review}"""
+            )
         }
     }
+}
+
+
+//     post {
+//         always {
+//             script {
+//                 def review = sh(
+//                     script: "tail -n 5 ./jenkins/scripts/copilot_output.txt || echo 'No review found.'",
+//                     returnStdout: true
+//                 ).trim()
+
+//                 def changeLog = getChangeString()
+//                 def color = COLOR_MAP.get(currentBuild.currentResult, 'warning')
+
+//                 echo "Slack Message Preview:"
+//                 echo "Changes:\n${changeLog}"
+//                 echo "Review:\n${review}"
+
+//                 slackSend(
+//                     channel: '#notification-jenkins',
+//                     color: color,
+//                     message: """`test jenkins` - *${currentBuild.currentResult}*
+// Changes:
+// ${changeLog}
+
+// Suggested Review:
+// ${review}
+// """
+//                 )
+//             }
+//         }
+//     }
 }
