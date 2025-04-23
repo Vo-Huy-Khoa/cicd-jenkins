@@ -5,6 +5,7 @@ def COLOR_MAP = [
     'ABORTED' : 'warning'
 ]
 
+@NonCPS
 def getChangeString() {
     def MAX_MSG_LEN = 100
     def changeString = ""
@@ -56,10 +57,12 @@ pipeline {
             }
         }
 
-        stage('Copilot Code Review') {
+        stage('Copilot Review') {
             steps {
                 script {
-                    sh 'chmod +x ./jenkins/scripts/copilot_review.sh && ./jenkins/scripts/copilot_review.sh > ./jenkins/scripts/copilot_output.txt'
+                    sh 'chmod +x ./jenkins/scripts/copilot_review.sh'
+                    sh './jenkins/scripts/copilot_review.sh > ./jenkins/scripts/copilot_output.txt'
+                    sh 'cat ./jenkins/scripts/copilot_output.txt || echo "copilot_output.txt not found!"'
                 }
             }
         }
@@ -89,24 +92,27 @@ pipeline {
         always {
             script {
                 def review = sh(
-                    script: "grep -A 1 'Suggested Review' ./jenkins/scripts/copilot_output.txt | tail -n 1",
+                    script: "tail -n 5 ./jenkins/scripts/copilot_output.txt || echo 'No review found.'",
                     returnStdout: true
                 ).trim()
 
                 def changeLog = getChangeString()
-
                 def color = COLOR_MAP.get(currentBuild.currentResult, 'warning')
+
+                echo "Slack Message Preview:"
+                echo "Changes:\n${changeLog}"
+                echo "Review:\n${review}"
 
                 slackSend(
                     channel: '#notification-jenkins',
                     color: color,
                     message: """`test jenkins` - *${currentBuild.currentResult}*
-                    Changes:
-                    ${changeLog}
+Changes:
+${changeLog}
 
-                    Suggested Review:
-                    ${review}
-                    """
+Suggested Review:
+${review}
+"""
                 )
             }
         }
