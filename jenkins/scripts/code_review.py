@@ -14,18 +14,30 @@ def review_code(diff_text):
 {diff_text}
 """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are an expert code reviewer."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2,
-        max_tokens=500
-    )
-    return response.choices[0].message.content
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are an expert code reviewer."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2,
+            max_tokens=500
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error during AI review: {e}")
+        exit(1)
 
 if __name__ == "__main__":
-    diff = get_diff()
-    review = review_code(diff)
-    print(review)
+    try:
+        diff = get_diff()
+        if not diff.strip():
+            print("No code changes to review.")
+            exit(0)
+
+        review = review_code(diff)
+        print(review)
+    except Exception as e:
+        print(f"AI review failed: {e}")
+        exit(1)

@@ -28,6 +28,8 @@ pipeline {
     environment {
         SERVER_URL_PRODUCTION = 'https://example.com'
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
+        // Ensure pipx environment is available to Jenkins
+        PATH = "/root/.local/pipx/venvs/openai/bin:${env.PATH}"
     }
 
     options {
@@ -60,21 +62,24 @@ pipeline {
         }
 
         stage('AI Code Review') {
-            when {
-                branch 'dev'
-            }
             steps {
                 script {
+                    // Ensure python3 and the code review script have execute permissions
+                    sh 'chmod +x /root/.local/pipx/venvs/openai/bin/python3'
+                    sh 'chmod +x ./jenkins/scripts/code_review.py'
+
+                    // Fetch the latest code changes
                     sh "git fetch origin"
 
+                    // Run the AI code review script using the Python from pipx environment
                     def review = sh(
                         script: """
                             git diff origin/main...HEAD > diff.txt || true
-                            python3 jenkins/scripts/code_review.py < diff.txt
+                            pipx run openai ./jenkins/scripts/code_review.py < diff.txt
                         """,
                         returnStdout: true
                     ).trim()
-
+                    echo "===================AI Code Review Result: ${review}"
                     env.AI_REVIEW_RESULT = review
                 }
             }
@@ -97,16 +102,19 @@ pipeline {
 
     post {
         always {
-            def reviewMsg = env.AI_REVIEW_RESULT ?: "No AI review generated."
+            script {
+                // If AI review didn't run, provide a default message
+                def reviewMsg = env.AI_REVIEW_RESULT ?: "No AI review generated."
 
-            slackSend channel: '#notification-jenkins',
-                color: COLOR_MAP[currentBuild.currentResult],
-                message: """*Build Result:* ${currentBuild.currentResult}
-*Changes:* 
-${getChangeString()}
-*AI Code Review:*
-${reviewMsg}
-"""
+                slackSend channel: '#notification-jenkins',
+                    color: COLOR_MAP[currentBuild.currentResult],
+                    message: """*Build Result:* ${currentBuild.currentResult}
+    *Changes:* 
+    ${getChangeString()}
+    *AI Code Review:*
+    ${reviewMsg}
+    """
+            }
         }
     }
 }
