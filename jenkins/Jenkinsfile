@@ -8,9 +8,6 @@ pipeline {
     options {
         disableConcurrentBuilds()
     }
-    triggers {
-        githubPullRequest()
-    }
 
     stages {
         // stage('Install Dependencies') {
@@ -45,21 +42,21 @@ pipeline {
             }
         }
 
-        stage('Copilot Review') {
-            steps {
-                script {
-                    // Use OpenAI API key securely from Jenkins credentials
-                    withCredentials([string(credentialsId: 'OPENAI_API_KEY', variable: 'OPENAI_API_KEY')]) {
-                        sh """
-                            chmod +x ./jenkins/scripts/copilot_review.py &&
-                            export OPENAI_API_KEY=${OPENAI_API_KEY}
-                            source venv/bin/activate
-                            python3 ./jenkins/scripts/copilot_review.py || echo "No review generated."
-                        """
-                    }
-                }
-            }
-        }
+        // stage('Copilot Review') {
+        //     steps {
+        //         script {
+        //             // Use OpenAI API key securely from Jenkins credentials
+        //             withCredentials([string(credentialsId: 'OPENAI_API_KEY', variable: 'OPENAI_API_KEY')]) {
+        //                 sh """
+        //                     chmod +x ./jenkins/scripts/copilot_review.py &&
+        //                     export OPENAI_API_KEY=${OPENAI_API_KEY}
+        //                     source venv/bin/activate
+        //                     python3 ./jenkins/scripts/copilot_review.py || echo "No review generated."
+        //                 """
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Build') {
             steps {
