@@ -64,14 +64,8 @@ pipeline {
         stage('AI Code Review') {
             steps {
                 script {
-                    // Ensure python3 and the code review script have execute permissions
-                    sh 'chmod +x /root/.local/pipx/venvs/openai/bin/python3'
-                    sh 'chmod +x ./jenkins/scripts/code_review.py'
-
-                    // Fetch the latest code changes
                     sh "git fetch origin"
 
-                    // Run the AI code review script using the Python from pipx environment
                     def review = sh(
                         script: """
                             git diff origin/main...HEAD > diff.txt || true
