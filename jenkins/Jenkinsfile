@@ -8,9 +8,6 @@ pipeline {
     options {
         disableConcurrentBuilds()
     }
-    triggers {
-        githubPullRequest()
-    }
 
     stages {
         // stage('Install Dependencies') {
