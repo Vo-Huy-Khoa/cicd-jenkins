@@ -8,21 +8,24 @@ pipeline {
     options {
         disableConcurrentBuilds()
     }
+    triggers {
+        githubPullRequest()
+    }
 
     stages {
-        stage('Install Dependencies') {
-            steps {
-                script {
-                    // Create a virtual environment and install dependencies within it
-                    sh """
-                        python3 -m venv venv
-                        source venv/bin/activate
-                        pip install --upgrade pip
-                        pip install openai
-                    """
-                }
-            }
-        }
+        // stage('Install Dependencies') {
+        //     steps {
+        //         script {
+        //             // Create a virtual environment and install dependencies within it
+        //             sh """
+        //                 python3 -m venv venv
+        //                 source venv/bin/activate
+        //                 pip install --upgrade pip
+        //                 pip install openai
+        //             """
+        //         }
+        //     }
+        // }
 
         stage('Development') {
             when {
