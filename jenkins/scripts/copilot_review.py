@@ -13,7 +13,7 @@ for file in diff_files:
         continue
     code = subprocess.getoutput(f"git diff origin/main HEAD -- {file}")
     if code:
-        files_to_review.append(f"### {file}\n{code[:1500]}")  # tránh input quá dài
+        files_to_review.append(f"### {file}\n{code[:1500]}")
 
 if not files_to_review:
     print("No code changes to review.")
