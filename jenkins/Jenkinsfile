@@ -82,11 +82,6 @@ pipeline {
     post {
         always {
             script {
-                def review = sh(
-                    script: "grep -A 1 'Suggested Review' ./jenkins/scripts/copilot_output.txt | tail -n 1",
-                    returnStdout: true
-                ).trim()
-
                 def changeLog = getChangeString()
 
                 def color = COLOR_MAP.get(currentBuild.currentResult, 'warning')
@@ -97,9 +92,6 @@ pipeline {
                     message: """`test jenkins` - *${currentBuild.currentResult}*
                     Changes:
                     ${changeLog}
-
-                    Suggested Review:
-                    ${review}
                     """
                 )
             }
