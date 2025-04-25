@@ -64,10 +64,11 @@ pipeline {
             steps {
                 script {
                     sh "git fetch origin"
+                    sh "./venv/bin/pip install openai==0.28"
                     def review = sh(
                         script: """
                             git diff origin/main...HEAD > diff.txt || true
-                            pipx run openai ./jenkins/scripts/code_review.py < diff.txt
+                            ./venv/bin/python3 ./jenkins/scripts/code_review.py < diff.txt
                         """,
                         returnStdout: true
                     ).trim()
