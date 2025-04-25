@@ -61,23 +61,23 @@ pipeline {
             }
         }
 
-        stage('AI Code Review') {
-            steps {
-                script {
-                    sh "git fetch origin"
+        // stage('AI Code Review') {
+        //     steps {
+        //         script {
+        //             sh "git fetch origin"
 
-                    def review = sh(
-                        script: """
-                            git diff origin/main...HEAD > diff.txt || true
-                            pipx run openai ./jenkins/scripts/code_review.py < diff.txt
-                        """,
-                        returnStdout: true
-                    ).trim()
-                    echo "===================AI Code Review Result: ${review}"
-                    env.AI_REVIEW_RESULT = review
-                }
-            }
-        }
+        //             def review = sh(
+        //                 script: """
+        //                     git diff origin/main...HEAD > diff.txt || true
+        //                     pipx run openai ./jenkins/scripts/code_review.py < diff.txt
+        //                 """,
+        //                 returnStdout: true
+        //             ).trim()
+        //             echo "===================AI Code Review Result: ${review}"
+        //             env.AI_REVIEW_RESULT = review
+        //         }
+        //     }
+        // }
 
         stage('Deploy') {
             when {
