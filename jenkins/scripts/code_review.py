@@ -4,6 +4,9 @@ import sys
 
 # Set up OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
+print('All environment variables:', os.environ)
+
+print('==============', os.getenv("OPENAI_API_KEY"))
 
 def get_diff():
     """Reads the code diff from stdin."""
