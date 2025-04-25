@@ -93,14 +93,6 @@ pipeline {
     }
 
     post {
-        success {
-            githubNotify context: 'cicd-jenkins', description: 'Build passed', status: 'SUCCESS'
-        }
-
-        failure {
-            githubNotify context: 'cicd-jenkins', description: 'Build failed', status: 'FAILURE'
-        }
-
         always {
             script {
                 def reviewMsg = env.AI_REVIEW_RESULT ?: "No AI review generated."
