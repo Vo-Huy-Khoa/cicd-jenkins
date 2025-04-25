@@ -61,15 +61,6 @@ pipeline {
             }
         }
 
-        post {
-            success {
-                githubNotify context: 'cicd-jenkins', description: 'Build passed', status: 'SUCCESS'
-            }
-            failure {
-                githubNotify context: 'cicd-jenkins', description: 'Build failed', status: 'FAILURE'
-            }
-        }
-
         // stage('AI Code Review') {
         //     steps {
         //         script {
@@ -100,6 +91,15 @@ pipeline {
                     sh 'chmod +x ./jenkins/scripts/deploy.sh && ./jenkins/scripts/deploy.sh'
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            githubNotify context: 'cicd-jenkins', description: 'Build passed', status: 'SUCCESS'
+        }
+        failure {
+            githubNotify context: 'cicd-jenkins', description: 'Build failed', status: 'FAILURE'
         }
     }
 
