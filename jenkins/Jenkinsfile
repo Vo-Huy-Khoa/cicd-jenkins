@@ -28,7 +28,6 @@ pipeline {
     environment {
         SERVER_URL_PRODUCTION = 'https://example.com'
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
-        // Ensure pipx environment is available to Jenkins
         PATH = "/root/.local/pipx/venvs/openai/bin:${env.PATH}"
     }
 
@@ -65,7 +64,6 @@ pipeline {
         //     steps {
         //         script {
         //             sh "git fetch origin"
-
         //             def review = sh(
         //                 script: """
         //                     git diff origin/main...HEAD > diff.txt || true
@@ -98,15 +96,13 @@ pipeline {
         success {
             githubNotify context: 'cicd-jenkins', description: 'Build passed', status: 'SUCCESS'
         }
+
         failure {
             githubNotify context: 'cicd-jenkins', description: 'Build failed', status: 'FAILURE'
         }
-    }
 
-    post {
         always {
             script {
-                // If AI review didn't run, provide a default message
                 def reviewMsg = env.AI_REVIEW_RESULT ?: "No AI review generated."
 
                 slackSend channel: '#notification-jenkins',
