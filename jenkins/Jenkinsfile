@@ -1,112 +1,58 @@
-def COLOR_MAP = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'warning', 'ABORTED': 'danger']
-
-@NonCPS
-def getChangeString() {
-    MAX_MSG_LEN = 100
-    def changeString = ""
-    echo "Gathering SCM changes"
-    def changeLogSets = currentBuild.rawBuild.changeSets
-    for (int i = 0; i < changeLogSets.size(); i++) {
-        def entries = changeLogSets[i].items
-        for (int j = 0; j < entries.length; j++) {
-            def entry = entries[j]
-            truncated_msg = entry.msg.take(MAX_MSG_LEN)
-            if (!truncated_msg.contains(',')) {
-                changeString += " - ${truncated_msg}\n"
-            }
-        }
-    }
-    if (!changeString) {
-        changeString = " - No new changes"
-    }
-    return changeString
-}
-
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        SERVER_URL_PRODUCTION = 'https://example.com'
-        OPENAI_API_KEY = credentials('OPENAI_API_KEY')
-        PATH = "/root/.local/pipx/venvs/openai/bin:${env.PATH}"
+  environment {
+    GITHUB_TOKEN = credentials('GITHUB_TOKEN')       // GitHub PAT
+    GROQ_API_KEY = credentials('GROQ_API_KEY')       // Thêm token Groq vào Jenkins credentials
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
     }
 
-    options {
-        disableConcurrentBuilds()
+    stage('Get PR Diff') {
+      steps {
+        sh 'git fetch origin +refs/pull/*/head:refs/remotes/origin/pr/*'
+        script {
+          env.DIFF = sh(script: 'git diff origin/main', returnStdout: true).trim()
+        }
+      }
     }
 
-    stages {
-        stage('Development') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                script {
-                    env.TAG = 'development'
-                    env.ENV_FILE = "${env.ENV_DEV}"
-                    env.SERVER_USERNAME = "${env.SERVER_USERNAME_DEV}"
-                    env.SERVER_URL = "${env.SERVER_URL_DEV}"
-                    env.SERVER_SSH_KEY_FILE = "${env.SERVER_SSH_KEY_FILE_DEV}"
-                }
+    stage('Ask Groq for Code Review') {
+      steps {
+        script {
+          def payload = [
+            model: "llama3-8b-8192",
+            messages: [
+              [role: "system", content: "Bạn là AI code reviewer."],
+              [role: "user", content: "Hãy review đoạn diff sau:\n" + env.DIFF]
+            ]
+          ]
 
-                echo "BUILD_ENV: dev"
-                echo "TAG: $TAG"
-            }
-        }
+          try {
+            def response = httpRequest(
+              httpMode: 'POST',
+              url: 'https://api.groq.com/openai/v1/chat/completions',
+              customHeaders: [
+                [name: 'Authorization', value: "Bearer ${env.GROQ_API_KEY}"],
+                [name: 'Content-Type', value: 'application/json']
+              ],
+              requestBody: groovy.json.JsonOutput.toJson(payload),
+              validResponseCodes: '200'
+            )
 
-        stage('Build') {
-            steps {
-                sh 'chmod +x ./jenkins/scripts/build.sh && ./jenkins/scripts/build.sh'
-            }
+            def body = new groovy.json.JsonSlurper().parseText(response.content)
+            env.REVIEW_COMMENT = body.choices[0].message.content
+            echo env.REVIEW_COMMENT
+          } catch (Exception e) {
+            error "Groq API request failed"
+          }
         }
-
-        stage('AI Code Review') {
-            steps {
-                script {
-                    sh "git fetch origin"
-                    sh "./venv/bin/pip install openai==0.28"
-                    def review = sh(
-                        script: """
-                            git diff origin/main...HEAD > diff.txt || true
-                            ./venv/bin/python3 ./jenkins/scripts/code_review.py < diff.txt
-                        """,
-                        returnStdout: true
-                    ).trim()
-                    echo "===================AI Code Review Result: ${review}"
-                    env.AI_REVIEW_RESULT = review
-                }
-            }
-        }
-
-        stage('Deploy') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'dev'
-                }
-            }
-            steps {
-                script {
-                    sh 'chmod +x ./jenkins/scripts/deploy.sh && ./jenkins/scripts/deploy.sh'
-                }
-            }
-        }
+      }
     }
-
-    post {
-        always {
-            script {
-                def reviewMsg = env.AI_REVIEW_RESULT ?: "No AI review generated."
-
-                slackSend channel: '#notification-jenkins',
-                    color: COLOR_MAP[currentBuild.currentResult],
-                    message: """*Build Result:* ${currentBuild.currentResult}
-    *Changes:* 
-    ${getChangeString()}
-    *AI Code Review:*
-    // ${reviewMsg}
-    """
-            }
-        }
-    }
+  }
 }
