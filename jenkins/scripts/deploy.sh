@@ -6,13 +6,13 @@ set -x
 chmod 400 $SERVER_SSH_KEY_FILE
 
 #Upload
-scp -i $SERVER_SSH_KEY_FILE build.zip  $SERVER_USERNAME@$SERVER_URL://home/$SERVER_USERNAME/cicd-jenkins/build.zip
-scp -i $SERVER_SSH_KEY_FILE package.json $SERVER_USERNAME@$SERVER_URL://home/$SERVER_USERNAME/cicd-jenkins/package.json
-scp -i $SERVER_SSH_KEY_FILE yarn.lock $SERVER_USERNAME@$SERVER_URL://home/$SERVER_USERNAME/cicd-jenkins/yarn.lock
-scp -i $SERVER_SSH_KEY_FILE $ENV_FILE $SERVER_USERNAME@$SERVER_URL://home/$SERVER_USERNAME/cicd-jenkins/.env
+scp -i $SERVER_SSH_KEY_FILE build.zip  $SERVER_USERNAME@$SERVICE_NAME://home/$SERVER_USERNAME/cicd-jenkins/build.zip
+scp -i $SERVER_SSH_KEY_FILE package.json $SERVER_USERNAME@$SERVICE_NAME://home/$SERVER_USERNAME/cicd-jenkins/package.json
+scp -i $SERVER_SSH_KEY_FILE yarn.lock $SERVER_USERNAME@$SERVICE_NAME://home/$SERVER_USERNAME/cicd-jenkins/yarn.lock
+scp -i $SERVER_SSH_KEY_FILE $ENV_FILE $SERVER_USERNAME@$SERVICE_NAME://home/$SERVER_USERNAME/cicd-jenkins/.env
 
 #Deploy
-ssh -i $SERVER_SSH_KEY_FILE $SERVER_USERNAME@$SERVER_URL '
+ssh -i $SERVER_SSH_KEY_FILE $SERVER_USERNAME@$SERVICE_NAME '
   cd cicd-jenkins
   export PATH=$PATH:/home/ubuntu/.nvm/versions/node/v20.11.0/bin
   npm install
