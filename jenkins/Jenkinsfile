@@ -2,7 +2,7 @@ def COLOR_MAP = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'danger', '
 
 @NonCPS
 def getChangeString() {
-    MAX_MSG_LEN = 100
+    def MAX_MSG_LEN = 100
     def changeString = ""
     echo "Gathering SCM changes"
     def changeLogSets = currentBuild.rawBuild.changeSets
@@ -10,7 +10,7 @@ def getChangeString() {
         def entries = changeLogSets[i].items
         for (int j = 0; j < entries.length; j++) {
             def entry = entries[j]
-            truncated_msg = entry.msg.take(MAX_MSG_LEN)
+            def truncated_msg = entry.msg.take(MAX_MSG_LEN)
             if (!truncated_msg.contains(',')) {
                 changeString += " - ${truncated_msg}\n"
             }
@@ -19,14 +19,15 @@ def getChangeString() {
     if (!changeString) {
         changeString = " - No new changes"
     }
-
     return changeString
 }
 
 pipeline {
     agent any
-    
+
     environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN')
+        GROQ_API_KEY = credentials('GROQ_API_KEY')
         SERVER_URL_PRODUCTION = 'https://example.com'
     }
 
@@ -35,7 +36,55 @@ pipeline {
     }
 
     stages {
-        stage('Development') {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Get PR Diff') {
+            steps {
+                sh 'git fetch origin +refs/pull/*/head:refs/remotes/origin/pr/*'
+                script {
+                    env.DIFF = sh(script: 'git diff origin/main', returnStdout: true).trim()
+                }
+            }
+        }
+
+        stage('Ask Groq for Code Review') {
+            steps {
+                script {
+                    def payload = [
+                        model: "llama3-8b-8192",
+                        messages: [
+                            [role: "system", content: "Bạn là AI code reviewer."],
+                            [role: "user", content: "Hãy review đoạn diff sau:\n" + env.DIFF]
+                        ]
+                    ]
+
+                    try {
+                        def response = httpRequest(
+                            httpMode: 'POST',
+                            url: 'https://api.groq.com/openai/v1/chat/completions',
+                            customHeaders: [
+                                [name: 'Authorization', value: "Bearer ${env.GROQ_API_KEY}"],
+                                [name: 'Content-Type', value: 'application/json']
+                            ],
+                            requestBody: groovy.json.JsonOutput.toJson(payload),
+                            validResponseCodes: '200'
+                        )
+
+                        def body = new groovy.json.JsonSlurper().parseText(response.content)
+                        env.REVIEW_COMMENT = body.choices[0].message.content
+                        echo "Review Comment:\n${env.REVIEW_COMMENT}"
+                    } catch (Exception e) {
+                        error "Groq API request failed: ${e.message}"
+                    }
+                }
+            }
+        }
+
+        stage('Prepare Environment') {
             when {
                 branch 'dev'
             }
@@ -47,12 +96,10 @@ pipeline {
                     env.SERVER_URL = "${env.SERVER_URL_DEV}"
                     env.SERVER_SSH_KEY_FILE = "${env.SERVER_SSH_KEY_FILE_DEV}"
                 }
-
                 echo "BUILD_ENV: dev"
-                echo "TAG: $TAG"
+                echo "TAG: ${env.TAG}"
             }
         }
-
 
         stage('Build') {
             steps {
@@ -67,21 +114,9 @@ pipeline {
                     branch 'dev'
                 }
             }
-
             steps {
-                script {
-                    sh 'chmod +x ./jenkins/scripts/deploy.sh && ./jenkins/scripts/deploy.sh'
-                }
+                sh 'chmod +x ./jenkins/scripts/deploy.sh && ./jenkins/scripts/deploy.sh'
             }
-        }
-
-    }
-
-    post {
-        always {
-            slackSend channel: '#notification-jenkins',
-                color: COLOR_MAP[currentBuild.currentResult],
-                message: "`test jenkins` - *${currentBuild.currentResult}*\nChanges: \n${getChangeString()}"
         }
     }
 }
