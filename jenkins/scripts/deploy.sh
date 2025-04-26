@@ -5,6 +5,9 @@ set -x
 
 chmod 400 $SERVER_SSH_KEY_FILE
 
+
+ssh -i $SERVER_SSH_KEY_FILE 'ubuntu@54.169.122.225'
+
 #Upload
 scp -i $SERVER_SSH_KEY_FILE build.zip  $SERVER_USERNAME@$SERVICE_NAME://home/$SERVER_USERNAME/cicd-jenkins/build.zip
 scp -i $SERVER_SSH_KEY_FILE package.json $SERVER_USERNAME@$SERVICE_NAME://home/$SERVER_USERNAME/cicd-jenkins/package.json
