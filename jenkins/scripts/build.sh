@@ -18,7 +18,7 @@ yarn test
 # Kiểm tra xem thư mục .output có được tạo ra không và zip lại
 if [ -d ".output" ]; then
     rm -rf .output.zip
-    zip -r .output.zip .output
+    zip -r output.zip .output
 else
     echo ".output directory does not exist!"
     exit 1
