@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   environment {
-    GITHUB_TOKEN = credentials('GITHUB_TOKEN')       // GitHub PAT
-    GROQ_API_KEY = credentials('GROQ_API_KEY')       // Thêm token Groq vào Jenkins credentials
+    GITHUB_TOKEN = credentials('GITHUB_TOKEN')
+    GROQ_API_KEY = credentials('GROQ_API_KEY')
   }
 
   stages {
