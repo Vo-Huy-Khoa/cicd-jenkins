@@ -21,7 +21,7 @@ ssh -i $SERVER_SSH_KEY_FILE $SERVER_USERNAME@$SERVICE_NAME '
   export PATH=$PATH:/home/ubuntu/.nvm/versions/node/v20.11.0/bin
   npm install
   sudo pm2 stop cicd-jenkins
-  rm -rf output
+  rm -rf .output
   unzip output.zip
   rm -f output.zip
   sudo pm2 restart cicd-jenkins --update-env --log-date-format "YYYY-MM-DD HH:mm:ss.SSS"
