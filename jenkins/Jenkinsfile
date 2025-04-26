@@ -27,7 +27,11 @@ pipeline {
     agent any
     
     environment {
-        SERVER_URL_PRODUCTION = 'https://example.com'
+        SERVER_USERNAME = credentials('SERVER_USERNAME')
+        SERVER_URL = credentials('SERVER_URL')
+        SERVER_SSH_KEY_FILE = credentials('SERVER_SSH_KEY_FILE')
+        SERVICE_NAME = credentials('SERVICE_NAME')
+        ENV_DEV = credentials('ENV_DEV')
     }
 
     options {
