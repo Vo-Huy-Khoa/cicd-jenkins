@@ -53,6 +53,24 @@ pipeline {
             }
         }
 
+        stage('Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    env.TAG = 'production'
+                    env.SERVER_USERNAME = "${env.SERVER_USERNAME}"
+                    env.SERVER_URL = "${env.SERVER_URL}"
+                    env.SERVER_SSH_KEY_FILE = "${env.SERVER_SSH_KEY_FILE}"
+                    env.SERVICE_NAME = "${env.SERVICE_NAME}"
+                }
+
+                echo "BUILD_ENV: production"
+                echo "TAG: $TAG"
+            }
+        }
+
 
         stage('Build') {
             steps {
