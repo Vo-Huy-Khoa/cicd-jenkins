@@ -44,7 +44,11 @@ pipeline {
 
         stage('Get PR Diff') {
             steps {
-                sh 'git fetch origin +refs/pull/*/head:refs/remotes/origin/pr/*'
+                sh '''
+                    git remote set-branches --add origin main
+                    git fetch origin main
+                    git fetch origin +refs/pull/*/head:refs/remotes/origin/pr/*
+                '''
                 script {
                     env.DIFF = sh(script: 'git diff origin/main', returnStdout: true).trim()
                 }
@@ -54,15 +58,15 @@ pipeline {
         stage('Ask Groq for Code Review') {
             steps {
                 script {
-                    def payload = [
-                        model: "llama3-8b-8192",
-                        messages: [
-                            [role: "system", content: "Bạn là AI code reviewer."],
-                            [role: "user", content: "Hãy review đoạn diff sau:\n" + env.DIFF]
+                    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                        def payload = [
+                            model: "llama3-8b-8192",
+                            messages: [
+                                [role: "system", content: "Bạn là AI code reviewer."],
+                                [role: "user", content: "Hãy review đoạn diff sau:\n" + env.DIFF]
+                            ]
                         ]
-                    ]
 
-                    try {
                         def response = httpRequest(
                             httpMode: 'POST',
                             url: 'https://api.groq.com/openai/v1/chat/completions',
@@ -77,8 +81,6 @@ pipeline {
                         def body = new groovy.json.JsonSlurper().parseText(response.content)
                         env.REVIEW_COMMENT = body.choices[0].message.content
                         echo "Review Comment:\n${env.REVIEW_COMMENT}"
-                    } catch (Exception e) {
-                        error "Groq API request failed: ${e.message}"
                     }
                 }
             }
@@ -107,7 +109,8 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+
+         stage('Deploy') {
             when {
                 anyOf {
                     branch 'main'
