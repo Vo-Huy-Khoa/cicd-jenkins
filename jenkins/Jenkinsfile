@@ -32,6 +32,9 @@ pipeline {
         SERVER_SSH_KEY_FILE = credentials('SERVER_SSH_KEY_FILE')
         SERVICE_NAME = credentials('SERVICE_NAME')
         ENV_DEV = credentials('ENV_DEV')
+        
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN')
+        GROQ_API_KEY = credentials('GROQ_API_KEY')
     }
 
     options {
@@ -39,6 +42,12 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Development') {
             when {
                 branch 'dev'
@@ -75,6 +84,50 @@ pipeline {
             }
         }
 
+
+        stage('Get PR Diff') {
+            steps {
+                sh '''
+                    git remote set-branches --add origin main
+                    git fetch origin main
+                    git fetch origin +refs/pull/*/head:refs/remotes/origin/pr/*
+                '''
+                script {
+                    env.DIFF = sh(script: 'git diff origin/main', returnStdout: true).trim()
+                }
+            }
+        }
+
+        stage('Ask Groq for Code Review') {
+            steps {
+                script {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                        def payload = [
+                            model: "llama3-8b-8192",
+                            messages: [
+                                [role: "system", content: "Bạn là AI code reviewer."],
+                                [role: "user", content: "Hãy review đoạn diff sau:\n" + env.DIFF]
+                            ]
+                        ]
+
+                        def response = httpRequest(
+                            httpMode: 'POST',
+                            url: 'https://api.groq.com/openai/v1/chat/completions',
+                            customHeaders: [
+                                [name: 'Authorization', value: "Bearer ${env.GROQ_API_KEY}"],
+                                [name: 'Content-Type', value: 'application/json']
+                            ],
+                            requestBody: groovy.json.JsonOutput.toJson(payload),
+                            validResponseCodes: '200'
+                        )
+
+                        def body = new groovy.json.JsonSlurper().parseText(response.content)
+                        env.REVIEW_COMMENT = body.choices[0].message.content
+                        echo "Review Comment:\n${env.REVIEW_COMMENT}"
+                    }
+                }
+            }
+        }
 
         stage('Build') {
             steps {
