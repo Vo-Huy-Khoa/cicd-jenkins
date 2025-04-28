@@ -108,6 +108,9 @@ pipeline {
         }
 
         stage('Get PR Diff') {
+           when {
+                expression { return isPullRequest() }
+            }
             steps {
                 script {
                     sh '''
@@ -139,6 +142,9 @@ pipeline {
         }
 
         stage('Ask Groq for Code Review') {
+            when {
+                expression { return isPullRequest() }
+            }
             steps {
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
@@ -193,14 +199,15 @@ pipeline {
                 }
             }
         }
-
     }
 
     post {
         always {
-            slackSend channel: isPullRequest() ? '#pr-notifications' : '#merge-notifications',
-                color: COLOR_MAP[currentBuild.currentResult],
-                message: "`cicd-jenkins` - *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}${isPullRequest() ? "\n*Review*\n${env.REVIEW_COMMENT}" : ""}"
+            if (isPullRequest() || env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
+                slackSend channel: isPullRequest() ? '#pr-notifications' : '#merge-notifications',
+                    color: COLOR_MAP[currentBuild.currentResult],
+                    message: "`cicd-jenkins` - *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}${isPullRequest() ? "\n*Review*\n${env.REVIEW_COMMENT}" : ""}"
+            }
         }
     }
 }
