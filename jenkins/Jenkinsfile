@@ -14,13 +14,17 @@ def getChangeString() {
             returnStdout: true
         ).trim()
     } else {
-        changeString = sh(
-            script: """
-                git fetch origin
-                git log --pretty=format:" - %s" origin/${env.BRANCH_NAME}..HEAD
-            """,
-            returnStdout: true
-        ).trim()
+    changeString = sh(
+        script: """
+            git fetch origin
+            git log --pretty=format:" - %s" origin/${env.BRANCH_NAME}..HEAD
+        """,
+        returnStdout: true
+    ).trim()
+
+    // Thêm URL vào dưới cùng
+    changeString += "\nURL: http://ec2-54-169-122-225.ap-southeast-1.compute.amazonaws.com/"
+
     }
 
     if (!changeString) {
