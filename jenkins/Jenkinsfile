@@ -1,4 +1,5 @@
 def COLOR_MAP = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'danger', 'ABORTED': 'danger']
+def MAX_MSG_LEN = 100
 
 @NonCPS
 def getChangeString() {
