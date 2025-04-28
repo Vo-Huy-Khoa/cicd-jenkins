@@ -203,10 +203,13 @@ pipeline {
 
     post {
         always {
-            if (isPullRequest() || env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
-                slackSend channel: isPullRequest() ? '#pr-notifications' : '#merge-notifications',
-                    color: COLOR_MAP[currentBuild.currentResult],
-                    message: "`cicd-jenkins` - *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}${isPullRequest() ? "\n*Review*\n${env.REVIEW_COMMENT}" : ""}"
+            // Chỉ gửi thông báo khi là pull request hoặc khi là branch `main` hoặc `dev`
+            script {
+                if (isPullRequest() || env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
+                    slackSend channel: isPullRequest() ? '#pr-notifications' : '#merge-notifications',
+                        color: COLOR_MAP[currentBuild.currentResult],
+                        message: "`cicd-jenkins` - *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}${isPullRequest() ? "\n*Review*\n${env.REVIEW_COMMENT}" : ""}"
+                }
             }
         }
     }
