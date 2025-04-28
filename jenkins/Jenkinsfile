@@ -14,17 +14,18 @@ def getChangeString() {
             returnStdout: true
         ).trim()
     } else {
-    changeString = sh(
-        script: """
-            git fetch origin
-            git log --pretty=format:" - %s" origin/${env.BRANCH_NAME}..HEAD
-        """,
-        returnStdout: true
-    ).trim()
-
-    // Thêm URL vào dưới cùng
-    changeString += "\nURL: http://ec2-54-169-122-225.ap-southeast-1.compute.amazonaws.com/"
-
+        def changeLogSets = currentBuild.rawBuild.changeSets
+        for (int i = 0; i < changeLogSets.size(); i++) {
+            def entries = changeLogSets[i].items
+            for (int j = 0; j < entries.length; j++) {
+                def entry = entries[j]
+                truncated_msg = entry.msg.take(MAX_MSG_LEN)
+                if (!truncated_msg.contains(',')) {
+                    changeString += " - ${truncated_msg}\n"
+                }
+            }
+        }
+        changeString += "\nURL: http://ec2-54-169-122-225.ap-southeast-1.compute.amazonaws.com/"
     }
 
     if (!changeString) {
