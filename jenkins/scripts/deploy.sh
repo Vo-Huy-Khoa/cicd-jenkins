@@ -13,7 +13,6 @@ ssh -i $SERVER_SSH_KEY_FILE -o StrictHostKeyChecking=no ubuntu@54.169.122.225
 scp -i $SERVER_SSH_KEY_FILE output.zip  $SERVER_USERNAME@$SERVICE_NAME:/home/$SERVER_USERNAME/cicd-jenkins/output.zip
 scp -i $SERVER_SSH_KEY_FILE package.json $SERVER_USERNAME@$SERVICE_NAME:/home/$SERVER_USERNAME/cicd-jenkins/package.json
 scp -i $SERVER_SSH_KEY_FILE yarn.lock $SERVER_USERNAME@$SERVICE_NAME:/home/$SERVER_USERNAME/cicd-jenkins/yarn.lock
-# scp -i $SERVER_SSH_KEY_FILE $ENV_FILE $SERVER_USERNAME@$SERVICE_NAME:/home/$SERVER_USERNAME/cicd-jenkins/.env
 
 # Deploy the app
 ssh -i $SERVER_SSH_KEY_FILE $SERVER_USERNAME@$SERVICE_NAME '

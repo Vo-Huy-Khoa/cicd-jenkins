@@ -5,20 +5,19 @@ def getChangeString() {
     def changeString = ""
     echo "Gathering Git changes manually"
 
-    // Lấy các commit mới giữa target và source branch
     if (env.CHANGE_ID) {
-        // Là pull request
         changeString = sh(
             script: """
+                git fetch origin
                 git log --pretty=format:" - %s" origin/${env.CHANGE_TARGET}..origin/pr/${env.CHANGE_ID}
             """,
             returnStdout: true
         ).trim()
     } else {
-        // Là branch bình thường
         changeString = sh(
             script: """
-                git log --pretty=format:" - %s" origin/${env.BRANCH_NAME}..
+                git fetch origin
+                git log --pretty=format:" - %s" origin/${env.BRANCH_NAME}..HEAD
             """,
             returnStdout: true
         ).trim()
@@ -199,9 +198,9 @@ pipeline {
 
     post {
         always {
-            slackSend channel: '#notification-jenkins',
+            slackSend channel: isPullRequest() ? '#pr-notifications' : '#merge-notifications',
                 color: COLOR_MAP[currentBuild.currentResult],
-                message: "*Build Type:* ${env.BUILD_TYPE}\n*Result:* *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}"
+                message: "`cicd-jenkins` - *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}${isPullRequest() ? "\n*Review*\n${env.REVIEW_COMMENT}" : ""}"
         }
     }
 }
