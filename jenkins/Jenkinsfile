@@ -2,20 +2,28 @@ def COLOR_MAP = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'danger', '
 
 @NonCPS
 def getChangeString() {
-    MAX_MSG_LEN = 100
     def changeString = ""
-    echo "Gathering SCM changes"
-    def changeLogSets = currentBuild.rawBuild.changeSets
-    for (int i = 0; i < changeLogSets.size(); i++) {
-        def entries = changeLogSets[i].items
-        for (int j = 0; j < entries.length; j++) {
-            def entry = entries[j]
-            truncated_msg = entry.msg.take(MAX_MSG_LEN)
-            if (!truncated_msg.contains(',')) {
-                changeString += " - ${truncated_msg}\n"
-            }
-        }
+    echo "Gathering Git changes manually"
+
+    // Lấy các commit mới giữa target và source branch
+    if (env.CHANGE_ID) {
+        // Là pull request
+        changeString = sh(
+            script: """
+                git log --pretty=format:" - %s" origin/${env.CHANGE_TARGET}..origin/pr/${env.CHANGE_ID}
+            """,
+            returnStdout: true
+        ).trim()
+    } else {
+        // Là branch bình thường
+        changeString = sh(
+            script: """
+                git log --pretty=format:" - %s" origin/${env.BRANCH_NAME}..
+            """,
+            returnStdout: true
+        ).trim()
     }
+
     if (!changeString) {
         changeString = " - No new changes"
     }
@@ -23,15 +31,22 @@ def getChangeString() {
     return changeString
 }
 
+def isPullRequest() {
+    return env.CHANGE_ID != null
+}
+
 pipeline {
     agent any
-    
+
     environment {
         SERVER_USERNAME = credentials('SERVER_USERNAME')
         SERVER_URL = credentials('SERVER_URL')
         SERVER_SSH_KEY_FILE = credentials('SERVER_SSH_KEY_FILE')
         SERVICE_NAME = credentials('SERVICE_NAME')
         ENV_DEV = credentials('ENV_DEV')
+
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN')
+        GROQ_API_KEY = credentials('GROQ_API_KEY')
     }
 
     options {
@@ -39,6 +54,26 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Determine Build Type') {
+            steps {
+                script {
+                    if (isPullRequest()) {
+                        echo "This is a Pull Request build"
+                        env.BUILD_TYPE = 'pr'
+                    } else {
+                        echo "This is a branch build"
+                        env.BUILD_TYPE = 'branch'
+                    }
+                }
+            }
+        }
+
         stage('Development') {
             when {
                 branch 'dev'
@@ -51,7 +86,6 @@ pipeline {
                     env.SERVER_URL = "${env.SERVER_URL_DEV}"
                     env.SERVER_SSH_KEY_FILE = "${env.SERVER_SSH_KEY_FILE_DEV}"
                 }
-
                 echo "BUILD_ENV: dev"
                 echo "TAG: $TAG"
             }
@@ -69,12 +103,72 @@ pipeline {
                     env.SERVER_SSH_KEY_FILE = "${env.SERVER_SSH_KEY_FILE}"
                     env.SERVICE_NAME = "${env.SERVICE_NAME}"
                 }
-
                 echo "BUILD_ENV: production"
                 echo "TAG: $TAG"
             }
         }
 
+        stage('Get PR Diff') {
+            steps {
+                script {
+                    sh '''
+                        git remote set-branches --add origin main
+                        git remote set-branches --add origin dev
+                        git fetch --all
+                        git fetch origin +refs/pull/*/head:refs/remotes/origin/pr/*
+                    '''
+
+                    if (isPullRequest()) {
+                        echo "Getting diff for Pull Request #${env.CHANGE_ID}"
+                        env.DIFF = sh(
+                            script: """
+                                git diff origin/${env.CHANGE_TARGET}...origin/pr/${env.CHANGE_ID}
+                            """,
+                            returnStdout: true
+                        ).trim()
+                    } else {
+                        echo "Getting diff for branch ${env.BRANCH_NAME}"
+                        env.DIFF = sh(
+                            script: """
+                                git diff origin/${env.BRANCH_NAME}
+                            """,
+                            returnStdout: true
+                        ).trim()
+                    }
+                }
+            }
+        }
+
+        stage('Ask Groq for Code Review') {
+            steps {
+                script {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                        def payload = [
+                            model: "llama3-8b-8192",
+                            messages: [
+                                [role: "system", content: "Bạn là AI code reviewer."],
+                                [role: "user", content: "Hãy review đoạn diff sau:\n" + env.DIFF]
+                            ]
+                        ]
+
+                        def response = httpRequest(
+                            httpMode: 'POST',
+                            url: 'https://api.groq.com/openai/v1/chat/completions',
+                            customHeaders: [
+                                [name: 'Authorization', value: "Bearer ${env.GROQ_API_KEY}"],
+                                [name: 'Content-Type', value: 'application/json']
+                            ],
+                            requestBody: groovy.json.JsonOutput.toJson(payload),
+                            validResponseCodes: '200'
+                        )
+
+                        def body = new groovy.json.JsonSlurper().parseText(response.content)
+                        env.REVIEW_COMMENT = body.choices[0].message.content
+                        echo "Review Comment:\n${env.REVIEW_COMMENT}"
+                    }
+                }
+            }
+        }
 
         stage('Build') {
             steps {
@@ -84,12 +178,16 @@ pipeline {
 
         stage('Deploy') {
             when {
-                anyOf {
-                    branch 'main'
-                    branch 'dev'
+                allOf {
+                    anyOf {
+                        branch 'main'
+                        branch 'dev'
+                    }
+                    expression {
+                        return env.BUILD_TYPE == 'branch'
+                    }
                 }
             }
-
             steps {
                 script {
                     sh 'chmod +x ./jenkins/scripts/deploy.sh && ./jenkins/scripts/deploy.sh'
@@ -103,7 +201,7 @@ pipeline {
         always {
             slackSend channel: '#notification-jenkins',
                 color: COLOR_MAP[currentBuild.currentResult],
-                message: "`test jenkins` - *${currentBuild.currentResult}*\nChanges: \n${getChangeString()}"
+                message: "*Build Type:* ${env.BUILD_TYPE}\n*Result:* *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}"
         }
     }
 }
