@@ -1,3 +1,3 @@
 <template>
-  <div>em Khoa thu lai 1 phat nua</div>
+  <div>Demo Jenkins</div>
 </template>
