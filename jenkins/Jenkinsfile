@@ -10,6 +10,7 @@ def getChangeString() {
         // Là pull request
         changeString = sh(
             script: """
+                git fetch origin
                 git log --pretty=format:" - %s" origin/${env.CHANGE_TARGET}..origin/pr/${env.CHANGE_ID}
             """,
             returnStdout: true
@@ -18,7 +19,8 @@ def getChangeString() {
         // Là branch bình thường
         changeString = sh(
             script: """
-                git log --pretty=format:" - %s" origin/${env.BRANCH_NAME}..
+                git fetch origin
+                git log --pretty=format:" - %s" origin/${env.BRANCH_NAME}..HEAD
             """,
             returnStdout: true
         ).trim()
@@ -201,7 +203,7 @@ pipeline {
         always {
             slackSend channel: isPullRequest() ? '#pr-notifications' : '#merge-notifications',
                 color: COLOR_MAP[currentBuild.currentResult],
-                message: "`cicd-jenkins` - *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}\n*Review*\n${env.REVIEW_COMMENT}"
+                message: "`cicd-jenkins` - *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}${isPullRequest() ? "\n*Review*\n${env.REVIEW_COMMENT}" : ""}"
         }
     }
 }
