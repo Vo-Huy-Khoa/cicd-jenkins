@@ -1,10 +1,9 @@
 def COLOR_MAP = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'danger', 'ABORTED': 'danger']
-def MAX_MSG_LEN = 100
 
 @NonCPS
 def getChangeString() {
+    MAX_MSG_LEN = 100
     def changeString = ""
-    echo "Gathering Git changes manually"
 
     if (env.CHANGE_ID) {
         changeString = sh(
@@ -27,10 +26,6 @@ def getChangeString() {
             }
         }
         changeString += "\nURL: http://ec2-54-169-122-225.ap-southeast-1.compute.amazonaws.com/"
-    }
-
-    if (!changeString) {
-        changeString = " - No new changes"
     }
 
     return changeString
@@ -209,7 +204,6 @@ pipeline {
 
     post {
         always {
-            // Chỉ gửi thông báo khi là pull request hoặc khi là branch `main` hoặc `dev`
             script {
                 if (isPullRequest() || env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
                     slackSend channel: isPullRequest() ? '#pr-notifications' : '#merge-notifications',
