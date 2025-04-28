@@ -201,7 +201,7 @@ pipeline {
         always {
             slackSend channel: isPullRequest() ? '#pr-notifications' : '#merge-notifications',
                 color: COLOR_MAP[currentBuild.currentResult],
-                message: "*Build Type:* ${env.BUILD_TYPE}\n*Result:* *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}*\nReview*\n${env.REVIEW_COMMENT}"
+                message: "`cicd-jenkins` - *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}\n*Review*\n${env.REVIEW_COMMENT}"
         }
     }
 }
