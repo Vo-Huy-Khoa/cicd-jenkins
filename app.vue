@@ -1,3 +1,3 @@
 <template>
-  <div>em Khoa moi doi text ne</div>
+  <div>em Khoa thu lai 1 phat nua</div>
 </template>
