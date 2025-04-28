@@ -5,9 +5,7 @@ def getChangeString() {
     def changeString = ""
     echo "Gathering Git changes manually"
 
-    // Lấy các commit mới giữa target và source branch
     if (env.CHANGE_ID) {
-        // Là pull request
         changeString = sh(
             script: """
                 git fetch origin
@@ -16,7 +14,6 @@ def getChangeString() {
             returnStdout: true
         ).trim()
     } else {
-        // Là branch bình thường
         changeString = sh(
             script: """
                 git fetch origin
