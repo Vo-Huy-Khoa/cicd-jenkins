@@ -1,3 +1,3 @@
 <template>
-  <div>em Khoa da deploy thanh cong</div>
+  <div>em Khoa moi doi text ne</div>
 </template>
