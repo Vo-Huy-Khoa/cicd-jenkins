@@ -199,9 +199,10 @@ pipeline {
 
     post {
         always {
-            slackSend channel: '#notification-jenkins',
+             def slackChannel = isPullRequest() ? '#pr-notifications' : '#merge-notifications'
+            slackSend channel: slackChannel,
                 color: COLOR_MAP[currentBuild.currentResult],
-                message: "*Build Type:* ${env.BUILD_TYPE}\n*Result:* *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}"
+                message: "*Build Type:* ${env.BUILD_TYPE}\n*Result:* *${currentBuild.currentResult}*\n*Changes:*\n${getChangeString()}*\nReview*\n${env.REVIEW_COMMENT}"
         }
     }
 }
